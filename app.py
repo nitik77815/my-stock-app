@@ -153,7 +153,7 @@ if st.sidebar.button("Analyze (Rule of 3)"):
             
             st.title(f"📊 {stock_name} Professional Analysis")
             
-            # --- THE RULE OF THREE LOGIC ---
+# --- THE RULE OF THREE LOGIC ---
             score = 0
             
             # CATEGORY 1: TREND (Daily Chart)
@@ -176,4 +176,52 @@ if st.sidebar.button("Analyze (Rule of 3)"):
             if vol_bullish: score += 1
             
             # Intraday Check
-            intra_bull
+            intra_bullish = last_15['Close'] > last_15['VWAP']
+            intra_msg = "Price > VWAP" if intra_bullish else "Price < VWAP"
+            intra_color = "green" if intra_bullish else "red"
+
+            # --- DISPLAY SUMMARY ---
+            col1, col2, col3, col4 = st.columns(4)
+            col1.metric("Current Price", f"₹{last_day['Close']}")
+            col2.metric("Daily Trend", trend_msg)
+            col3.metric("RSI Momentum", f"{rsi_val:.1f}")
+            col4.metric("Intraday Signal", intra_msg)
+
+            st.divider()
+
+            # --- THE RULE OF THREE CHECKLIST ---
+            c1, c2, c3 = st.columns(3)
+            c1.markdown(f"**1. Trend (EMA 50):** :{trend_color}[{trend_msg}]")
+            c2.markdown(f"**2. Momentum (RSI):** :{mom_color}[{mom_msg}]")
+            c3.markdown(f"**3. Volume:** :{vol_color}[{vol_msg}]")
+
+            if score == 3 and intra_bullish:
+                st.success("🚀 **STRONG BUY SIGNAL** (All Systems Go!)")
+            elif score <= 1:
+                st.error("🛑 **NO TRADE** (Waiting for setup)")
+            else:
+                st.warning("⚠️ **Watchlist** (Mixed Signals)")
+
+            # --- ADVANCED CHARTS ---
+            tab1, tab2 = st.tabs(["Daily Chart (Trend)", "15-Min Chart (Entry)"])
+
+            with tab1:
+                fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.7, 0.3])
+                fig.add_trace(go.Candlestick(x=df_daily.index, open=df_daily['Open'], high=df_daily['High'], low=df_daily['Low'], close=df_daily['Close'], name="Price"), row=1, col=1)
+                fig.add_trace(go.Scatter(x=df_daily.index, y=df_daily['EMA_50'], line=dict(color='orange'), name="50 EMA"), row=1, col=1)
+                if 'Supertrend' in df_daily.columns:
+                    fig.add_trace(go.Scatter(x=df_daily.index, y=df_daily['Supertrend'], line=dict(color='green', dash='dot'), name="Supertrend"), row=1, col=1)
+                fig.add_trace(go.Bar(x=df_daily.index, y=df_daily['MACD'] - df_daily['MACD_Signal'], name="MACD Hist"), row=2, col=1)
+                fig.update_layout(height=600, template="plotly_dark", title_text="Daily Trend Analysis")
+                st.plotly_chart(fig, use_container_width=True)
+
+            with tab2:
+                fig2 = go.Figure()
+                fig2.add_trace(go.Candlestick(x=df_intra.index, open=df_intra['Open'], high=df_intra['High'], low=df_intra['Low'], close=df_intra['Close'], name="Intraday Price"))
+                if 'VWAP' in df_intra.columns:
+                    fig2.add_trace(go.Scatter(x=df_intra.index, y=df_intra['VWAP'], line=dict(color='cyan'), name="VWAP"))
+                fig2.update_layout(height=500, template="plotly_dark", title_text="15-Minute Entry Chart (VWAP)")
+                st.plotly_chart(fig2, use_container_width=True)
+
+        else:
+            st.error("Could not fetch data. Market closed or invalid symbol.")

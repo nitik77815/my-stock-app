@@ -1,0 +1,7 @@
+streamlit
+pandas
+pandas_ta
+plotly
+smartapi-python
+pyotp
+websocket-client
